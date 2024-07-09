@@ -33,7 +33,7 @@ gcloud compute project-info add-metadata --metadata-from-file=ssh-keys=project_s
 # cleanup file
 rm project_ssh_file
 
-# Create netwok rules to allow ssh and icmp for cc tagged instances only
+# Create network rules to allow ssh, icmp and mosquito for cc tagged instances only
 # ssh connections
 gcloud compute firewall-rules create cc-allow-ssh \
     --action=ALLOW \
@@ -76,12 +76,22 @@ PUBLIC_IP=$(gcloud compute instances describe ${INSTANCE_NAME} \
   --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
 
 # wait for VM to be ready
-ssh-keyscan $PUBLIC_IP >> ~/.ssh/known_hosts
+ssh-keyscan ${PUBLIC_IP} >> ~/.ssh/known_hosts
 while test $? -gt 0
 do
   sleep 5
   echo SSH not ready...
-  ssh-keyscan $PUBLIC_IP >> ~/.ssh/known_hosts
+  ssh-keyscan ${PUBLIC_IP} >> ~/.ssh/known_hosts
+done
+
+# copy scripts to GCP instance
+# wait for boot to finish if necessary
+scp -i ~/.ssh/id_rsa ./* ubuntu@${PUBLIC_IP}:/home/ubuntu/
+while test $? -gt 0
+do
+  sleep 5
+  echo Waiting for boot to finish...
+  scp -i ~/.ssh/id_rsa ./* ubuntu@${PUBLIC_IP}:/home/ubuntu/
 done
 
 ssh -i ~/.ssh/id_rsa ubuntu@${PUBLIC_IP}
@@ -91,10 +101,3 @@ do
   echo SSH not ready...
   ssh -i ~/.ssh/id_rsa ubuntu@${PUBLIC_IP}
 done
-
-# Install necessary packages
-sudo apt update -y
-sudo apt upgrade -y
-sudo apt-get install curl gnupg2 wget git apt-transport-https ca-certificates -y
-sudo apt-get install mosquitto
-sudo systemctl restart mosquitto

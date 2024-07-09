@@ -4,9 +4,7 @@ import json
 import paho.mqtt.client as mqtt
 import threading
 import queue
-
 from dataclasses import dataclass, field
-
 
 # MQTT client setup
 MQTT_BROKER = '0.0.0.0'
@@ -19,16 +17,34 @@ client = mqtt.Client()
 
 last_message = float("inf")
 
+
 @dataclass(order=True)
 class PrioritizedData:
+    """
+    A class for storing data with priority for the priority queue.
+
+    Attributes:
+        priority (float): The priority of the data.
+        item (dict): The actual data.
+    """
     priority: float
-    item: dict=field(compare=False)
+    item: dict = field(compare=False)
+
 
 data_queue = queue.PriorityQueue()
 ketchup_queue = queue.Queue()
 
 
 def on_connect(client, userdata, flags, rc):
+    """
+    Callback function for when the client connects to the MQTT broker.
+
+    Parameters:
+        client (Client): The MQTT client instance.
+        userdata: The private user data.
+        flags: Response flags sent by the broker.
+        rc (int): The connection result.
+    """
     global last_message
     if rc == 0:
         print("Connected to MQTT Broker!")
@@ -47,14 +63,38 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_disconnect(client, userdata, rc):
+    """
+    Callback function for when the client disconnects from the MQTT broker.
+
+    Parameters:
+        client (Client): The MQTT client instance.
+        userdata: The private user data.
+        rc (int): The disconnection result.
+    """
     print("Disconnected from MQTT Broker")
 
 
 def on_publish(client, userdata, mid):
+    """
+    Callback function for when a message is published.
+
+    Parameters:
+        client (Client): The MQTT client instance.
+        userdata: The private user data.
+        mid (int): The message ID.
+    """
     print("Data published")
 
 
 def on_message(client, userdata, msg):
+    """
+    Callback function for when a message is received from the MQTT broker.
+
+    Parameters:
+        client (Client): The MQTT client instance.
+        userdata: The private user data.
+        msg (MQTTMessage): The received message.
+    """
     global last_message
     if msg.topic == MQTT_TOPIC_3:
         client.unsubscribe(MQTT_TOPIC_3)
@@ -79,6 +119,9 @@ client.loop_start()
 
 
 def collect_and_send_data():
+    """
+    Collects data from virtual sensors and sends back a recommendation to the MQTT broker.
+    """
     while True:
         if not data_queue.empty():
             d_last_msg = time.time() - last_message
@@ -91,7 +134,7 @@ def collect_and_send_data():
             if data == {}:
                 time.sleep(SLEEP_DURATION)
                 continue
-            if client.is_connected() and d_last_msg < 2*SLEEP_DURATION:
+            if client.is_connected() and d_last_msg < 2 * SLEEP_DURATION:
                 response = client.publish(MQTT_TOPIC_2, json.dumps(data))
                 try:
                     response.is_published()
@@ -106,19 +149,42 @@ def collect_and_send_data():
             data = {}
             time.sleep(SLEEP_DURATION)
 
+
 def calculate_mean(elements, key):
+    """
+    Calculates the mean of a given key from a list of elements.
+
+    Parameters:
+        elements (list): The list of elements.
+        key (str): The key for which the mean is calculated.
+
+    Returns:
+        float: The mean value.
+    """
     return sum(item.item[key] for item in elements) / len(elements)
+
+
 def calculate_recommendation(key):
-    # if durchschnitt der letzten 3 temps höher als 80: reduce freq by 200
-    # newest_three = list(data_queue.queue)[:3]
+    """
+    Calculates the recommendation for adjusting the offset factor based on temperature readings.
+
+    Parameters:
+        key (str): The key for which the recommendation is calculated.
+
+    Returns:
+        float: The recommended offset adjustment.
+    """
+    # If the average of the last 3 temperatures is higher than 70, reduce the frequency by a factor of 0.05
     if calculate_mean(list(data_queue.queue)[:3], key) > 70:
         return -0.05
+    # If the average of the last 3 temperatures is lower than 65, increase the frequency bya factor of 0.05
     if calculate_mean(list(data_queue.queue)[:3], key) < 65:
         return 0.05
+    # Otherwise, no change
     else:
         return 0
 
 
+# Start the data collection and sending thread
 data_thread = threading.Thread(target=collect_and_send_data)
-
 data_thread.start()
