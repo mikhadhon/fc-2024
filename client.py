@@ -56,7 +56,7 @@ def cpu_freq_sensor():
 
 
 # MQTT client setup
-MQTT_BROKER = '34.38.244.15'
+MQTT_BROKER = '34.77.96.134'
 MQTT_PORT = 1883
 MQTT_TOPIC = 'environment/telemetry'
 MQTT_TOPIC_2 = 'environment/recommendation'
@@ -157,9 +157,11 @@ client.subscribe(MQTT_TOPIC_2)
 client.loop_start()
 
 def collect_and_send_data():
+    time.sleep(2)
     """
     Collects data from virtual sensors and sends it to the MQTT broker.
     """
+    global last_message
     while True:
         d_last_msg = time.time() - last_message
         print(f"delta: {d_last_msg}")

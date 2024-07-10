@@ -58,6 +58,7 @@ def on_connect(client, userdata, flags, rc):
                 print(f"Failed to send data: {e}")
                 ketchup_queue.put(data)
         last_message = float("inf")
+        client.subscribe(MQTT_TOPIC)
     else:
         print("Failed to connect, return code %d\n", rc)
 
@@ -122,6 +123,7 @@ def collect_and_send_data():
     """
     Collects data from virtual sensors and sends back a recommendation to the MQTT broker.
     """
+    global last_message
     while True:
         if not data_queue.empty():
             d_last_msg = time.time() - last_message
