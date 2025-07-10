@@ -6,7 +6,8 @@ import threading
 import queue
 from dataclasses import dataclass, field
 
-# MQTT client setup
+# MQTT client setup setup
+# test kommentar
 MQTT_BROKER = '0.0.0.0'
 MQTT_PORT = 1883
 MQTT_TOPIC = 'environment/telemetry'
